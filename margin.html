@@ -260,6 +260,8 @@ th, td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 13
         document.getElementById('out-section').innerText = d.section || "-";
         document.getElementById('out-dob').innerText = d.dob || "-";
         document.getElementById('out-mother').innerText = d.mother || "-";
+        document.getElementById('final-grade').innerText = d.overallGrade || "-";
+
         
         if(d.photo) { 
             document.getElementById('out-photo').src = d.photo; 
