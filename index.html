@@ -42,32 +42,28 @@ th, td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 13
 .footer-signs { margin-top: 40px; display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; }
 .bottom-footer { background-color: #FFA500; color: #000; text-align: center; padding: 15px; font-size: 13px; margin-top: 50px; }
 
-@media print {
+@media print { 
     @page {
-        size: A4 portrait;
-        margin: 0; /* Webview ke default margin ko zero karein */
+        margin-top: 15mm; /* Sirf upar space dega taaki top border na kate */
+        margin-bottom: 5mm;
+        margin-left: 5mm;
+        margin-right: 5mm;
     }
-    html, body {
-        width: 100% !important;
-        height: 100% !important;
+    body { 
+        background-color: #fff !important; 
+        padding-top: 10px !important; /* Top border ko andar shift karega */
         margin: 0 !important;
-        padding: 0 !important;
-        background-color: #fff !important;
     }
-    #search-box, .top-header, .bottom-footer, #print-controls { 
+    #search-box, .top-header, .bottom-footer, #print-controls, .print-btn-div { 
         display: none !important; 
     } 
     .m-container { 
-        display: block !important;
-        width: 90% !important; /* Width ko thoda kam rakha hai border bachane ke liye */
-        margin: 15px auto !important; /* Center align ke liye */
+        display: block !important; 
+        width: 100% !important; 
+        margin: 0 auto !important; 
         box-sizing: border-box !important;
         border: 2px solid #000 !important; 
         box-shadow: none !important;
-        
-        /* WEBVIEW SCALING TRICK (Isse Page Katega Nahi) */
-        transform: scale(0.93); /* Poore layout ko 7% chhota kar dega */
-        transform-origin: top center;
     }
 }
 </style>
