@@ -44,13 +44,12 @@ th, td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 13
 
 @media print { 
     @page {
-        size: A4 portrait; /* Paper size standard A4 set karein */
-        margin: 15mm 10mm 10mm 10mm; /* Symmetrical margins for safe area */
+        size: letter;
+        margin: 15mm 9mm 5mm 9mm; /* Top, Right, Bottom, Left margins */
     }
     body { 
         background-color: #fff !important; 
-        padding: 0 !important;
-        margin: 0 !important;
+        padding-top: 0 !important;
     }
     .top-header, #search-box, .bottom-footer, .print-btn-div { 
         display: none !important; 
@@ -58,12 +57,9 @@ th, td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 13
     .m-container { 
         display: block !important; 
         width: 100% !important; 
-        max-width: 100% !important;
         margin: 0 auto !important; 
-        padding: 10px !important; /* Border ke andar space ke liye */
         box-sizing: border-box !important;
         border: 2px solid #000 !important; 
-        page-break-inside: avoid !important; /* Single page overflow rokne ke liye */
     }
 }
 </style>
