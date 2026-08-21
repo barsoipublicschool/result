@@ -91,10 +91,10 @@
     <div style="text-align: center;">
       <img id="photoPreview" class="preview-img" src="https://via.placeholder.com/120?text=No+Photo" alt="Photo Preview">
       
-      <!-- Native Camera Input -->
-      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="handleImageCapture(event)">
+      <!-- Hidden File Input WITHOUT capture attribute (Opens Camera + Gallery Selection) -->
+      <input type="file" id="cameraInput" accept="image/*" style="display: none;" onchange="handleImageCapture(event)">
       
-      <button type="button" class="btn btn-camera" onclick="triggerCamera()">📷 Take Photo (Camera)</button>
+      <button type="button" class="btn btn-camera" onclick="triggerCamera()">📸 Select / Take Photo (Camera or Gallery)</button>
     </div>
 
     <button class="btn btn-submit" id="btnSubmit" onclick="submitData()">Save & Submit Data</button>
@@ -185,12 +185,12 @@
     document.getElementById('updateForm').style.display = 'block';
   }
 
-  // Native Camera trigger
+  // Camera / Gallery Option Trigger
   function triggerCamera() {
     document.getElementById('cameraInput').click();
   }
 
-  // Handle selected/captured photo with Low/Medium Quality Compression
+  // Handle selected photo from Camera OR Gallery (Low/Medium Quality Compression ~20-30KB)
   function handleImageCapture(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -199,7 +199,7 @@
     reader.onload = function(e) {
       const img = new Image();
       img.onload = function() {
-        // High Speed Compression (Max Size: 300px, Quality: 40%)
+        // High Speed Compression (Max Dimension: 300px)
         const canvas = document.createElement('canvas');
         const MAX_SIZE = 300; 
 
@@ -224,7 +224,7 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Quality set to 0.4 (40%) for small file size (~20-30KB)
+        // Fast upload quality (40% JPEG quality)
         capturedBase64 = canvas.toDataURL('image/jpeg', 0.4);
         document.getElementById('photoPreview').src = capturedBase64;
       };
