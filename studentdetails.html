@@ -25,10 +25,14 @@
     .details-card p { margin: 5px 0; font-size: 14px; color: #2c3e50; }
     .details-card strong { color: #1a237e; }
 
-    .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; display: inline-block; text-align: center; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; display: inline-block; text-align: center; }
     .btn-camera { background: #0288d1; color: white; }
+    .btn-gallery { background: #7b1fa2; color: white; }
     .btn-submit { background: #2e7d32; color: white; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    .photo-btn-container { display: flex; gap: 10px; margin-top: 10px; }
+    .photo-btn-container .btn { margin-top: 0; flex: 1; }
 
     .preview-img { width: 120px; height: 120px; object-fit: cover; border-radius: 50%; margin: 10px auto; border: 3px solid #1a237e; display: block; }
   </style>
@@ -91,10 +95,15 @@
     <div style="text-align: center;">
       <img id="photoPreview" class="preview-img" src="https://via.placeholder.com/120?text=No+Photo" alt="Photo Preview">
       
-      <!-- Hidden File Input WITHOUT capture attribute (Opens Camera + Gallery Selection) -->
-      <input type="file" id="cameraInput" accept="image/*" style="display: none;" onchange="handleImageCapture(event)">
+      <!-- Separate Hidden File Inputs for Camera and Gallery -->
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="handleImageCapture(event)">
+      <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="handleImageCapture(event)">
       
-      <button type="button" class="btn btn-camera" onclick="triggerCamera()">📸 Select / Take Photo (Camera or Gallery)</button>
+      <!-- Dual Option Buttons -->
+      <div class="photo-btn-container">
+        <button type="button" class="btn btn-camera" onclick="triggerCamera()">📷 Camera</button>
+        <button type="button" class="btn btn-gallery" onclick="triggerGallery()">📁 Gallery</button>
+      </div>
     </div>
 
     <button class="btn btn-submit" id="btnSubmit" onclick="submitData()">Save & Submit Data</button>
@@ -185,12 +194,17 @@
     document.getElementById('updateForm').style.display = 'block';
   }
 
-  // Camera / Gallery Option Trigger
+  // Camera Trigger
   function triggerCamera() {
     document.getElementById('cameraInput').click();
   }
 
-  // Handle selected photo from Camera OR Gallery (Low/Medium Quality Compression ~20-30KB)
+  // Gallery Trigger
+  function triggerGallery() {
+    document.getElementById('galleryInput').click();
+  }
+
+  // Handle selected photo from Camera OR Gallery (Medium Quality Compression ~50-80KB)
   function handleImageCapture(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -199,9 +213,9 @@
     reader.onload = function(e) {
       const img = new Image();
       img.onload = function() {
-        // High Speed Compression (Max Dimension: 300px)
+        // Medium Quality Resolution (Max Dimension: 500px)
         const canvas = document.createElement('canvas');
-        const MAX_SIZE = 300; 
+        const MAX_SIZE = 500; 
 
         let width = img.width;
         let height = img.height;
@@ -224,8 +238,8 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Fast upload quality (40% JPEG quality)
-        capturedBase64 = canvas.toDataURL('image/jpeg', 0.4);
+        // Medium JPEG Quality (65%) for sharp picture & moderate size
+        capturedBase64 = canvas.toDataURL('image/jpeg', 0.65);
         document.getElementById('photoPreview').src = capturedBase64;
       };
       img.src = e.target.result;
@@ -281,7 +295,8 @@
         document.getElementById('studentSelect').value = "";
         document.getElementById('detailsCard').style.display = 'none';
         document.getElementById('updateForm').style.display = 'none';
-        document.getElementById('cameraInput').value = ""; // Clear file input
+        document.getElementById('cameraInput').value = "";
+        document.getElementById('galleryInput').value = "";
       });
     })
     .catch(err => {
