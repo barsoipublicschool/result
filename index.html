@@ -195,6 +195,27 @@ th, td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 13
 
 <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbxyNwy4iC62bBAo2S6AZ41fquTPMqDzrzzMOTRVhapoU7pM1flSFrgsvwOxO_gvoNrr/exec";
+    window.addEventListener('DOMContentLoaded', () => {
+    // 1. URL से Parameters पढ़ें
+    const params = new URLSearchParams(window.location.search);
+    const cls = params.get('class');
+    const roll = params.get('roll');
+
+    // 2. Form के Inputs को पकड़े (अपने Input IDs के हिसाब से check करें)
+    const classInput = document.querySelector('input[placeholder*="Class"]') || document.getElementById('classInput');
+    const rollInput = document.querySelector('input[placeholder*="Roll"]') || document.getElementById('rollInput');
+    const checkBtn = document.querySelector('button') || document.querySelector('input[type="submit"]');
+
+    // 3. Inputs में Value Fill करें
+    if (cls && classInput) classInput.value = cls;
+    if (roll && rollInput) rollInput.value = roll;
+
+    // 4. अगर Data मिल गया तो खुद-ब-खुद Check Result बटन क्लिक कराएं
+    if (cls && roll && checkBtn) {
+        checkBtn.click(); // Ya phir aap direct apna search function call kar sakte hain
+    }
+});
+
     
     // Webview viewport clear trigger before printing
     function doPrint() {
