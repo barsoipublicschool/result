@@ -371,18 +371,46 @@
         return defaultValue;
     }
 
+    // Secondary Fetch to grab All Students Sheet Data
+    async function fetchAllStudentsData(cls, roll) {
+        try {
+            const res = await fetch(`${API_URL}?action=getAllStudents`);
+            const allData = await res.json();
+            
+            if (Array.isArray(allData)) {
+                const matchedStudent = allData.find(item => {
+                    const r = getDynamicField(item, ['rollNo', 'roll']);
+                    const c = getDynamicField(item, ['class', 'className']).toLowerCase();
+                    return String(r).trim() === String(roll).trim() && c === String(cls).trim().toLowerCase();
+                });
+
+                if (matchedStudent) {
+                    const bg = getDynamicField(matchedStudent, ['bloodGroup', 'blood', 'bGroup']);
+                    const addr = getDynamicField(matchedStudent, ['address', 'addr']);
+                    const mob = getDynamicField(matchedStudent, ['mobile', 'mobileNo', 'phone']);
+                    
+                    if (bg !== "-") document.getElementById('card-blood').innerText = bg;
+                    if (addr !== "-") document.getElementById('card-address').innerText = addr;
+                    if (mob !== "-") document.getElementById('card-mobile').innerText = mob;
+                }
+            }
+        } catch (e) {
+            console.log("Could not fetch extra master details", e);
+        }
+    }
+
     function fetchIDData(cls, roll) {
         Swal.fire({ title: 'Generating ID Card...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-        // Using reliable original action
         fetch(`${API_URL}?action=getResult&rollNo=${roll}&className=${cls}`)
             .then(res => res.json())
-            .then(d => {
+            .then(async d => {
                 Swal.close();
                 if (d == "Not Found" || d == "Invalid Class") {
                     return Swal.fire('Error', 'Student record not found!', 'error');
                 }
 
+                // Base Data Population
                 document.getElementById('card-id').innerText = getDynamicField(d, ['regNo', 'studentId', 'idNo'], "BPS-" + roll);
                 document.getElementById('card-name').innerText = getDynamicField(d, ['name', 'studentName', 'studentsName']);
                 document.getElementById('card-father').innerText = getDynamicField(d, ['father', 'fatherName', 'fathersName']);
@@ -392,6 +420,7 @@
                 const rawDob = getDynamicField(d, ['dob', 'dateOfBirth']);
                 document.getElementById('card-dob').innerText = formatDate(rawDob);
                 
+                // Direct or Default Fill
                 document.getElementById('card-blood').innerText = getDynamicField(d, ['bloodGroup', 'blood', 'bGroup'], "N/A");
                 document.getElementById('card-address').innerText = getDynamicField(d, ['address', 'addr'], "Barsoi, Katihar");
                 document.getElementById('card-mobile').innerText = getDynamicField(d, ['mobile', 'mobileNo', 'phone'], "-");
@@ -399,6 +428,11 @@
                 const photoVal = getDynamicField(d, ['photo', 'photoUrl', 'photo_url', 'image'], "");
                 document.getElementById('card-photo').src = photoVal !== "-" ? photoVal : "https://via.placeholder.com/110x130?text=No+Photo";
                 
+                // Fetch Master Sheet in Background for missing fields
+                if (document.getElementById('card-blood').innerText === "N/A" || document.getElementById('card-mobile').innerText === "-") {
+                    await fetchAllStudentsData(cls, roll);
+                }
+
                 document.getElementById('search-box').style.display = 'none';
                 document.getElementById('idCard').style.display = 'block';
                 document.getElementById('btnGroup').style.display = 'flex';
