@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>BARSOI PUBLIC SCHOOL - Marks Entry Portal</title>
+  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- SweetAlert2 CSS -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
   <style>
     :root {
       --school-green: #1b4332;
@@ -12,9 +16,7 @@
       --banner-dark: #2c3e50;
     }
     
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     html, body {
       height: 100%;
@@ -31,7 +33,6 @@
       padding: 0;
     }
 
-    /* Main Container Full Screen on Mobile */
     .main-card { 
       width: 100%;
       max-width: 900px;
@@ -54,7 +55,6 @@
       }
     }
     
-    /* Header Container */
     .header-container { 
       padding: 12px 10px 8px 10px; 
       background: #fff; 
@@ -87,12 +87,8 @@
       line-height: 1.3; 
     }
 
-    .school-email {
-      color: #0d6efd;
-      font-weight: 700;
-    }
+    .school-email { color: #0d6efd; font-weight: 700; }
     
-    /* Banner Strip */
     .banner-strip { 
       background: var(--banner-dark); 
       color: #ffffff; 
@@ -105,7 +101,6 @@
       flex-shrink: 0;
     }
 
-    /* Form Section Flex fill */
     .form-section { 
       padding: 10px 12px; 
       display: flex;
@@ -114,16 +109,8 @@
       overflow: hidden;
     }
 
-    /* Controls Row */
-    .controls-row {
-      flex-shrink: 0;
-      margin-bottom: 8px;
-    }
-
-    .form-label {
-      margin-bottom: 2px;
-      font-size: 0.85rem;
-    }
+    .controls-row { flex-shrink: 0; margin-bottom: 8px; }
+    .form-label { margin-bottom: 2px; font-size: 0.85rem; }
 
     .form-select {
       border-radius: 6px;
@@ -132,7 +119,6 @@
       border: 1.5px solid #cbd5e1;
     }
 
-    /* Full Height Table Wrapper */
     #marksForm {
       display: flex;
       flex-direction: column;
@@ -140,10 +126,7 @@
       overflow: hidden;
     }
 
-    .status-bar {
-      flex-shrink: 0;
-      margin-bottom: 6px;
-    }
+    .status-bar { flex-shrink: 0; margin-bottom: 6px; }
 
     .table-responsive { 
       flex-grow: 1;
@@ -174,11 +157,7 @@
       border-radius: 6px;
     }
 
-    /* Submit Button Footer */
-    .submit-container {
-      flex-shrink: 0;
-      padding-top: 2px;
-    }
+    .submit-container { flex-shrink: 0; padding-top: 2px; }
 
     .btn-submit {
       background-color: #0d6efd;
@@ -234,16 +213,10 @@
       </div>
     </div>
 
-    <!-- Loader -->
-    <div id="loader" class="text-center my-auto d-none">
-      <div class="spinner-border text-primary" role="status"></div>
-      <p class="mt-2 text-muted fw-semibold">Loading student records...</p>
-    </div>
-
     <!-- Students Marks Table Form -->
     <form id="marksForm" class="d-none" onsubmit="submitForm(event)">
       <div class="d-flex justify-content-between align-items-center status-bar">
-        <span class="text-muted small fw-bold">Auto-saves as you type</span>
+        <span class="text-muted small fw-bold">Marks auto-saves as you type</span>
         <span id="saveIndicator" class="badge bg-secondary">Idle</span>
       </div>
 
@@ -264,21 +237,18 @@
 
       <!-- Submit Button -->
       <div class="submit-container">
-        <button type="submit" id="submitBtn" class="btn btn-primary btn-submit">Submit</button>
+        <button type="submit" id="submitBtn" class="btn btn-primary btn-submit">Submit Marks</button>
       </div>
     </form>
-
-    <!-- Status Message -->
-    <div id="statusAlert" class="mt-2 alert d-none py-2 mb-0"></div>
   </div>
 
 </div>
 
 <script>
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8_fDurMlhkQ6a1Hq-H2rOnX0gn_qmc6stXIHR0Q9WV46hSOVkRQjFiVNJBS9tMM3roQ/exec";
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKu0kPz8PhZaHp0SfWcjnOrFxZrpmjDy5c6ZemkHFr63cSa2QXX9u5G-hEtyQt9d60xg/exec";
   let autoSaveTimer = null;
 
-  // 1. Fetch Class Tabs List
+  // 1. Fetch Class List on Page Load
   window.onload = function() {
     fetch(`${SCRIPT_URL}?action=getClasses`)
       .then(res => res.json())
@@ -293,10 +263,16 @@
           });
         }
       })
-      .catch(err => console.error("Error loading classes", err));
+      .catch(err => {
+        Swal.fire({
+          icon: 'error',
+          title: 'Connection Error',
+          text: 'Unable to connect to Google Sheet backend.'
+        });
+      });
   };
 
-  // 2. Fetch Subjects on Class Selection
+  // 2. Fetch Subjects on Class Change
   function onClassChange() {
     const className = document.getElementById("classSelect").value;
     const subjectSelect = document.getElementById("subjectSelect");
@@ -320,15 +296,13 @@
           });
           subjectSelect.disabled = false;
         }
-      })
-      .catch(err => console.error("Error loading subjects", err));
+      });
   }
 
-  // 3. Load Students & Existing Marks
+  // 3. Load Students Data with SweetAlert Loader
   function loadStudents() {
     const className = document.getElementById("classSelect").value;
     const subject = document.getElementById("subjectSelect").value;
-    const loader = document.getElementById("loader");
     const marksForm = document.getElementById("marksForm");
     const tbody = document.getElementById("studentTableBody");
 
@@ -337,16 +311,33 @@
       return;
     }
 
-    loader.classList.remove("d-none");
-    marksForm.classList.add("d-none");
+    // SweetAlert Loader
+    Swal.fire({
+      title: 'Loading Student Records...',
+      text: 'Fetching data from sheet',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
     tbody.innerHTML = "";
 
     fetch(`${SCRIPT_URL}?action=getStudents&className=${encodeURIComponent(className)}&subject=${encodeURIComponent(subject)}`)
       .then(res => res.json())
       .then(data => {
-        loader.classList.add("d-none");
+        Swal.close();
         if(data.status === "success") {
           marksForm.classList.remove("d-none");
+
+          if(data.students.length === 0) {
+            Swal.fire({
+              icon: 'warning',
+              title: 'No Data Found',
+              text: `No student rows found in Class ${className}`
+            });
+            return;
+          }
 
           data.students.forEach(std => {
             const tr = document.createElement("tr");
@@ -366,15 +357,25 @@
             `;
             tbody.appendChild(tr);
           });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error Loading Data',
+            text: data.message || 'Something went wrong.'
+          });
         }
       })
       .catch(err => {
-        loader.classList.add("d-none");
-        alert("Students list load karne me problem aayi.");
+        Swal.close();
+        Swal.fire({
+          icon: 'error',
+          title: 'Network Error',
+          text: 'Failed to fetch student list. Please check your connection.'
+        });
       });
   }
 
-  // 4. Auto-Save Trigger
+  // 4. Auto-Save Logic
   function triggerAutoSave() {
     const badge = document.getElementById("saveIndicator");
     badge.className = "badge bg-warning text-dark";
@@ -383,7 +384,7 @@
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
       saveMarksToSheet(false);
-    }, 1200);
+    }, 1000);
   }
 
   function triggerAutoSaveImmediate() {
@@ -391,13 +392,11 @@
     saveMarksToSheet(false);
   }
 
-  // 5. Fast Batch Save
+  // 5. Post Marks API Call
   function saveMarksToSheet(isFinalSubmit = false) {
     const className = document.getElementById("classSelect").value;
     const subject = document.getElementById("subjectSelect").value;
     const badge = document.getElementById("saveIndicator");
-    const alertBox = document.getElementById("statusAlert");
-    const submitBtn = document.getElementById("submitBtn");
 
     if(!className || !subject) return;
 
@@ -405,8 +404,14 @@
     badge.textContent = "Saving...";
 
     if(isFinalSubmit) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Submitting...";
+      Swal.fire({
+        title: 'Submitting Marks...',
+        text: 'Saving to Google Sheet',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
     }
 
     const markInputs = document.querySelectorAll(".mark-input");
@@ -429,31 +434,40 @@
     })
     .then(res => res.json())
     .then(res => {
-      if(isFinalSubmit) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit";
-      }
-
       if(res.status === "success") {
         badge.className = "badge bg-success";
         badge.textContent = "Auto-Saved";
 
         if(isFinalSubmit) {
-          alertBox.classList.remove("d-none", "alert-danger");
-          alertBox.classList.add("alert-success");
-          alertBox.textContent = `Success: Class ${className} (${subject}) marks submitted!`;
+          Swal.fire({
+            icon: 'success',
+            title: 'Submitted Successfully!',
+            text: `Class ${className} (${subject}) marks updated in sheet!`,
+            timer: 2500,
+            showConfirmButton: false
+          });
         }
       } else {
         badge.className = "badge bg-danger";
         badge.textContent = "Save Failed";
+        if(isFinalSubmit) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Submission Failed',
+            text: res.message
+          });
+        }
       }
     })
     .catch(err => {
       badge.className = "badge bg-danger";
       badge.textContent = "Error";
       if(isFinalSubmit) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit";
+        Swal.fire({
+          icon: 'error',
+          title: 'Network Error',
+          text: 'Server connection failed while saving.'
+        });
       }
     });
   }
