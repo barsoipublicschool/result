@@ -247,43 +247,27 @@
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKu0kPz8PhZaHp0SfWcjnOrFxZrpmjDy5c6ZemkHFr63cSa2QXX9u5G-hEtyQt9d60xg/exec";
   
-  // Instant Defaults for 0ms Loading
   const DEFAULT_CLASSES = ["Nursery", "LKG", "UKG", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
   const DEFAULT_SUBJECTS = ["English", "Urdu", "Hindi", "Maths", "Science", "S.Science", "G.K", "Computer", "Drawing"];
 
   let autoSaveTimer = null;
 
-  // Safe Fetch Helper
-  async function fetchWithRetry(url, options = {}, retries = 2) {
-    try {
-      const response = await fetch(url, options);
-      if (!response.ok) throw new Error("HTTP error " + response.status);
-      return await response.json();
-    } catch (err) {
-      if (retries > 0) {
-        await new Promise(r => setTimeout(r, 800));
-        return fetchWithRetry(url, options, retries - 1);
-      }
-      throw err;
-    }
-  }
-
-  // 1. INSTANT CLASS DROPDOWN (0ms)
+  // 1. INSTANT CLASS DROPDOWN
   window.onload = function() {
     const cachedClasses = localStorage.getItem("bps_cached_classes");
     const classesToRender = cachedClasses ? JSON.parse(cachedClasses) : DEFAULT_CLASSES;
     
     renderClassDropdown(classesToRender);
 
-    // Background Quiet Refresh
-    fetchWithRetry(`${SCRIPT_URL}?action=getClasses`)
+    fetch(`${SCRIPT_URL}?action=getClasses`)
+      .then(res => res.json())
       .then(data => {
         if(data.status === "success" && data.classes.length > 0) {
           localStorage.setItem("bps_cached_classes", JSON.stringify(data.classes));
           renderClassDropdown(data.classes);
         }
       })
-      .catch(err => console.log("Classes bg sync skipped"));
+      .catch(err => console.log("Classes sync skipped"));
   };
 
   function renderClassDropdown(classes) {
@@ -300,7 +284,7 @@
     });
   }
 
-  // 2. INSTANT SUBJECT DROPDOWN (0ms)
+  // 2. INSTANT SUBJECT DROPDOWN
   function onClassChange() {
     const className = document.getElementById("classSelect").value;
     const subjectSelect = document.getElementById("subjectSelect");
@@ -312,22 +296,21 @@
 
     if(!className) return;
 
-    // Load from cache or fallback instantly
     const cacheKey = "bps_subjects_" + className;
     const cachedSubjects = localStorage.getItem(cacheKey);
     const subjectsToRender = cachedSubjects ? JSON.parse(cachedSubjects) : DEFAULT_SUBJECTS;
 
     renderSubjectDropdown(subjectsToRender);
 
-    // Background Quiet Fetch for new subjects added in Sheet
-    fetchWithRetry(`${SCRIPT_URL}?action=getSubjects&className=${encodeURIComponent(className)}`)
+    fetch(`${SCRIPT_URL}?action=getSubjects&className=${encodeURIComponent(className)}`)
+      .then(res => res.json())
       .then(data => {
         if(data.status === "success" && data.subjects.length > 0) {
           localStorage.setItem(cacheKey, JSON.stringify(data.subjects));
           renderSubjectDropdown(data.subjects);
         }
       })
-      .catch(err => console.log("Subjects bg sync skipped"));
+      .catch(err => console.log("Subjects sync skipped"));
   }
 
   function renderSubjectDropdown(subjects) {
@@ -345,7 +328,7 @@
     subjectSelect.disabled = false;
   }
 
-  // 3. FAST & OPTIMISTIC STUDENT LOAD
+  // 3. LOAD STUDENTS (With SweetAlert Loader)
   function loadStudents() {
     const className = document.getElementById("classSelect").value;
     const subject = document.getElementById("subjectSelect").value;
@@ -358,50 +341,55 @@
       return;
     }
 
-    const cacheKey = `bps_students_${className}_${subject}`;
-    const cachedData = localStorage.getItem(cacheKey);
+    // Show Loading Alert
+    Swal.fire({
+      title: 'Loading Student List...',
+      text: `Fetching records for Class ${className} (${subject})`,
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
 
-    // Instantly show table if cached
-    if(cachedData) {
-      renderStudentRows(JSON.parse(cachedData));
-      marksForm.classList.remove("d-none");
-      badge.className = "badge bg-success";
-      badge.textContent = "Cached (Fast)";
-    } else {
-      badge.className = "badge bg-info text-dark";
-      badge.textContent = "Loading...";
-    }
+    tbody.innerHTML = "";
 
-    // Fetch Fresh Data from Google Sheet
-    fetchWithRetry(`${SCRIPT_URL}?action=getStudents&className=${encodeURIComponent(className)}&subject=${encodeURIComponent(subject)}`)
+    fetch(`${SCRIPT_URL}?action=getStudents&className=${encodeURIComponent(className)}&subject=${encodeURIComponent(subject)}`)
+      .then(res => res.json())
       .then(data => {
+        Swal.close();
         if(data.status === "success") {
-          localStorage.setItem(cacheKey, JSON.stringify(data.students));
+          if(data.students.length === 0) {
+            Swal.fire({
+              icon: 'warning',
+              title: 'No Data Found',
+              text: `Class ${className} me koi student row nahi mila.`
+            });
+            return;
+          }
+
           renderStudentRows(data.students);
           marksForm.classList.remove("d-none");
           badge.className = "badge bg-success";
-          badge.textContent = "Auto-Saved";
+          badge.textContent = "Ready";
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.message || 'Data load karne me problem aayi.'
+          });
         }
       })
       .catch(err => {
-        if(!cachedData) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Connection Issue',
-            text: 'Unable to connect to Google Sheet. Retrying...'
-          });
-        }
+        Swal.close();
+        Swal.fire({
+          icon: 'error',
+          title: 'Connection Error',
+          text: 'Google Sheet se data fetch nahi ho saka. Connection check karein.'
+        });
       });
   }
 
   function renderStudentRows(students) {
     const tbody = document.getElementById("studentTableBody");
     tbody.innerHTML = "";
-    if(students.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted p-3">No student records found</td></tr>`;
-      return;
-    }
-
     students.forEach(std => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -460,22 +448,10 @@
       });
     });
 
-    // Update Local Cache instantly
-    const cacheKey = `bps_students_${className}_${subject}`;
-    const cachedData = localStorage.getItem(cacheKey);
-    if(cachedData) {
-      let parsed = JSON.parse(cachedData);
-      parsed.forEach(std => {
-        const found = marksData.find(m => m.rowNum == std.rowNum);
-        if(found) std.mark = found.mark;
-      });
-      localStorage.setItem(cacheKey, JSON.stringify(parsed));
-    }
-
     if(isFinalSubmit) {
       Swal.fire({
         title: 'Submitting Marks...',
-        text: 'Updating Google Sheet',
+        text: 'Google Sheet me save ho raha hai',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
       });
@@ -519,7 +495,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'Failed to update.'
+          text: 'Google Sheet me update fail ho gaya.'
         });
       }
     });
