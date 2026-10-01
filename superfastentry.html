@@ -246,10 +246,14 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKu0kPz8PhZaHp0SfWcjnOrFxZrpmjDy5c6ZemkHFr63cSa2QXX9u5G-hEtyQt9d60xg/exec";
+  
+  // Instant Defaults for 0ms Loading
   const DEFAULT_CLASSES = ["Nursery", "LKG", "UKG", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
+  const DEFAULT_SUBJECTS = ["English", "Urdu", "Hindi", "Maths", "Science", "S.Science", "G.K", "Computer", "Drawing"];
+
   let autoSaveTimer = null;
 
-  // Safe Fetch Function with Auto-Retry
+  // Safe Fetch Helper
   async function fetchWithRetry(url, options = {}, retries = 2) {
     try {
       const response = await fetch(url, options);
@@ -257,21 +261,21 @@
       return await response.json();
     } catch (err) {
       if (retries > 0) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 800));
         return fetchWithRetry(url, options, retries - 1);
       }
       throw err;
     }
   }
 
-  // 1. INSTANT CLASS DROPDOWN LOAD (0 Milliseconds)
+  // 1. INSTANT CLASS DROPDOWN (0ms)
   window.onload = function() {
     const cachedClasses = localStorage.getItem("bps_cached_classes");
     const classesToRender = cachedClasses ? JSON.parse(cachedClasses) : DEFAULT_CLASSES;
     
     renderClassDropdown(classesToRender);
 
-    // Background Fresh Sync
+    // Background Quiet Refresh
     fetchWithRetry(`${SCRIPT_URL}?action=getClasses`)
       .then(data => {
         if(data.status === "success" && data.classes.length > 0) {
@@ -279,7 +283,7 @@
           renderClassDropdown(data.classes);
         }
       })
-      .catch(err => console.log("Background Class sync skipped"));
+      .catch(err => console.log("Classes bg sync skipped"));
   };
 
   function renderClassDropdown(classes) {
@@ -296,7 +300,7 @@
     });
   }
 
-  // 2. INSTANT SUBJECT DROPDOWN LOAD
+  // 2. INSTANT SUBJECT DROPDOWN (0ms)
   function onClassChange() {
     const className = document.getElementById("classSelect").value;
     const subjectSelect = document.getElementById("subjectSelect");
@@ -308,22 +312,22 @@
 
     if(!className) return;
 
+    // Load from cache or fallback instantly
     const cacheKey = "bps_subjects_" + className;
     const cachedSubjects = localStorage.getItem(cacheKey);
+    const subjectsToRender = cachedSubjects ? JSON.parse(cachedSubjects) : DEFAULT_SUBJECTS;
 
-    if(cachedSubjects) {
-      renderSubjectDropdown(JSON.parse(cachedSubjects));
-    }
+    renderSubjectDropdown(subjectsToRender);
 
-    // Background fetch to update subjects dynamically
+    // Background Quiet Fetch for new subjects added in Sheet
     fetchWithRetry(`${SCRIPT_URL}?action=getSubjects&className=${encodeURIComponent(className)}`)
       .then(data => {
-        if(data.status === "success") {
+        if(data.status === "success" && data.subjects.length > 0) {
           localStorage.setItem(cacheKey, JSON.stringify(data.subjects));
           renderSubjectDropdown(data.subjects);
         }
       })
-      .catch(err => console.log("Background Subject sync skipped"));
+      .catch(err => console.log("Subjects bg sync skipped"));
   }
 
   function renderSubjectDropdown(subjects) {
@@ -341,75 +345,84 @@
     subjectSelect.disabled = false;
   }
 
-  // 3. Load Students Data
+  // 3. FAST & OPTIMISTIC STUDENT LOAD
   function loadStudents() {
     const className = document.getElementById("classSelect").value;
     const subject = document.getElementById("subjectSelect").value;
     const marksForm = document.getElementById("marksForm");
     const tbody = document.getElementById("studentTableBody");
+    const badge = document.getElementById("saveIndicator");
 
     if(!className || !subject) {
       marksForm.classList.add("d-none");
       return;
     }
 
-    Swal.fire({
-      title: 'Loading Students...',
-      text: 'Please wait a moment',
-      allowOutsideClick: false,
-      didOpen: () => { Swal.showLoading(); }
-    });
+    const cacheKey = `bps_students_${className}_${subject}`;
+    const cachedData = localStorage.getItem(cacheKey);
 
-    tbody.innerHTML = "";
+    // Instantly show table if cached
+    if(cachedData) {
+      renderStudentRows(JSON.parse(cachedData));
+      marksForm.classList.remove("d-none");
+      badge.className = "badge bg-success";
+      badge.textContent = "Cached (Fast)";
+    } else {
+      badge.className = "badge bg-info text-dark";
+      badge.textContent = "Loading...";
+    }
 
+    // Fetch Fresh Data from Google Sheet
     fetchWithRetry(`${SCRIPT_URL}?action=getStudents&className=${encodeURIComponent(className)}&subject=${encodeURIComponent(subject)}`)
       .then(data => {
-        Swal.close();
         if(data.status === "success") {
+          localStorage.setItem(cacheKey, JSON.stringify(data.students));
+          renderStudentRows(data.students);
           marksForm.classList.remove("d-none");
-
-          if(data.students.length === 0) {
-            Swal.fire({
-              icon: 'warning',
-              title: 'No Data',
-              text: `No student records found in Class ${className}`
-            });
-            return;
-          }
-
-          data.students.forEach(std => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-              <td class="fw-bold text-secondary">${std.rollNo}</td>
-              <td class="fw-semibold">${std.name}</td>
-              <td class="text-center">
-                <input type="number" 
-                       class="form-control form-control-sm mark-input mx-auto" 
-                       data-row="${std.rowNum}" 
-                       value="${std.mark}" 
-                       min="0" max="100" 
-                       placeholder="0"
-                       oninput="triggerAutoSave()"
-                       onchange="triggerAutoSaveImmediate()">
-              </td>
-            `;
-            tbody.appendChild(tr);
-          });
-        } else {
-          Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Error loading records.' });
+          badge.className = "badge bg-success";
+          badge.textContent = "Auto-Saved";
         }
       })
       .catch(err => {
-        Swal.close();
-        Swal.fire({
-          icon: 'error',
-          title: 'Connection Issue',
-          text: 'Unable to connect to Mark Sheet. Retrying...'
-        });
+        if(!cachedData) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Connection Issue',
+            text: 'Unable to connect to Google Sheet. Retrying...'
+          });
+        }
       });
   }
 
-  // 4. Auto-Save Handlers
+  function renderStudentRows(students) {
+    const tbody = document.getElementById("studentTableBody");
+    tbody.innerHTML = "";
+    if(students.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted p-3">No student records found</td></tr>`;
+      return;
+    }
+
+    students.forEach(std => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="fw-bold text-secondary">${std.rollNo}</td>
+        <td class="fw-semibold">${std.name}</td>
+        <td class="text-center">
+          <input type="number" 
+                 class="form-control form-control-sm mark-input mx-auto" 
+                 data-row="${std.rowNum}" 
+                 value="${std.mark}" 
+                 min="0" max="100" 
+                 placeholder="0"
+                 oninput="triggerAutoSave()"
+                 onchange="triggerAutoSaveImmediate()">
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // 4. AUTO-SAVE HANDLERS
   function triggerAutoSave() {
     const badge = document.getElementById("saveIndicator");
     badge.className = "badge bg-warning text-dark";
@@ -418,7 +431,7 @@
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
       saveMarksToSheet(false);
-    }, 1200);
+    }, 1000);
   }
 
   function triggerAutoSaveImmediate() {
@@ -426,7 +439,7 @@
     saveMarksToSheet(false);
   }
 
-  // 5. Save Marks Function
+  // 5. SAVE MARKS TO SHEET
   function saveMarksToSheet(isFinalSubmit = false) {
     const className = document.getElementById("classSelect").value;
     const subject = document.getElementById("subjectSelect").value;
@@ -437,15 +450,6 @@
     badge.className = "badge bg-info text-dark";
     badge.textContent = "Saving...";
 
-    if(isFinalSubmit) {
-      Swal.fire({
-        title: 'Submitting Marks...',
-        text: 'Updating, please wait...',
-        allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
-      });
-    }
-
     const markInputs = document.querySelectorAll(".mark-input");
     const marksData = [];
 
@@ -455,6 +459,27 @@
         mark: input.value
       });
     });
+
+    // Update Local Cache instantly
+    const cacheKey = `bps_students_${className}_${subject}`;
+    const cachedData = localStorage.getItem(cacheKey);
+    if(cachedData) {
+      let parsed = JSON.parse(cachedData);
+      parsed.forEach(std => {
+        const found = marksData.find(m => m.rowNum == std.rowNum);
+        if(found) std.mark = found.mark;
+      });
+      localStorage.setItem(cacheKey, JSON.stringify(parsed));
+    }
+
+    if(isFinalSubmit) {
+      Swal.fire({
+        title: 'Submitting Marks...',
+        text: 'Updating Google Sheet',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+      });
+    }
 
     fetch(SCRIPT_URL, {
       method: "POST",
@@ -500,7 +525,7 @@
     });
   }
 
-  // 6. Form Submit
+  // 6. FORM SUBMIT
   function submitForm(e) {
     e.preventDefault();
     clearTimeout(autoSaveTimer);
