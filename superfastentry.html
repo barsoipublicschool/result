@@ -360,7 +360,7 @@
             Swal.fire({
               icon: 'warning',
               title: 'No Data Found',
-              text: `Class ${className} me koi student row nahi mila.`
+              text: `Class ${className} No student record.`
             });
             return;
           }
@@ -373,7 +373,7 @@
           Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: data.message || 'Data load karne me problem aayi.'
+            text: data.message || 'There is a problem to load Data.'
           });
         }
       })
@@ -382,7 +382,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Connection Error',
-          text: 'Google Sheet se data fetch nahi ho saka. Connection check karein.'
+          text: 'Could not fetch data. Check Connection.'
         });
       });
   }
@@ -451,7 +451,7 @@
     if(isFinalSubmit) {
       Swal.fire({
         title: 'Submitting Marks...',
-        text: 'Google Sheet me save ho raha hai',
+        text: 'Please wait.........',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
       });
@@ -495,7 +495,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'Google Sheet me update fail ho gaya.'
+          text: ' Failed to update .'
         });
       }
     });
