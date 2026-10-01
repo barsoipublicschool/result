@@ -41,7 +41,8 @@
       background: #ffffff; 
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow: visible !important;
+      margin: auto;
     }
 
     @media (min-width: 768px) {
@@ -53,7 +54,7 @@
       }
     }
     
-    /* Compact School Header */
+    /* Header Container */
     .header-container { 
       padding: 12px 10px 8px 10px; 
       background: #fff; 
@@ -91,7 +92,7 @@
       font-weight: 700;
     }
     
-    /* Compact Banner Strip */
+    /* Banner Strip */
     .banner-strip { 
       background: var(--banner-dark); 
       color: #ffffff; 
@@ -127,7 +128,7 @@
     .form-select {
       border-radius: 6px;
       padding: 8px 10px;
-      font-size: 15px !important;
+      font-size: 16px !important;
       border: 1.5px solid #cbd5e1;
     }
 
@@ -274,9 +275,7 @@
 </div>
 
 <script>
-  // Deployed Apps Script URL
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxtFRenRImWHJs7rKHXiplR7ZvSNO_m8zSe38OjdPmOdf1cS1zi7niVYVv1zQjBooBbRw/exec";
-  
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby8_fDurMlhkQ6a1Hq-H2rOnX0gn_qmc6stXIHR0Q9WV46hSOVkRQjFiVNJBS9tMM3roQ/exec";
   let autoSaveTimer = null;
 
   // 1. Fetch Class Tabs List
@@ -375,7 +374,7 @@
       });
   }
 
-  // 4. Fast Auto-Save Handlers
+  // 4. Auto-Save Trigger
   function triggerAutoSave() {
     const badge = document.getElementById("saveIndicator");
     badge.className = "badge bg-warning text-dark";
@@ -384,7 +383,7 @@
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
       saveMarksToSheet(false);
-    }, 800);
+    }, 1200);
   }
 
   function triggerAutoSaveImmediate() {
@@ -392,7 +391,7 @@
     saveMarksToSheet(false);
   }
 
-  // 5. Post Marks to Google Apps Script
+  // 5. Fast Batch Save
   function saveMarksToSheet(isFinalSubmit = false) {
     const className = document.getElementById("classSelect").value;
     const subject = document.getElementById("subjectSelect").value;
