@@ -375,7 +375,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Connection Issue',
-          text: 'Unable to connect to Google Sheet. Retrying...'
+          text: 'Unable to connect to Mark Sheet. Retrying...'
         });
       });
   }
@@ -411,7 +411,7 @@
     if(isFinalSubmit) {
       Swal.fire({
         title: 'Submitting Marks...',
-        text: 'Updating Google Sheet',
+        text: 'Updating, please wait...',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
       });
@@ -465,7 +465,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'Failed to update Google Sheet.'
+          text: 'Failed to update.'
         });
       }
     });
