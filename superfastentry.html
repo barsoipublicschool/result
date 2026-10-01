@@ -246,6 +246,7 @@
 
 <script>
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKu0kPz8PhZaHp0SfWcjnOrFxZrpmjDy5c6ZemkHFr63cSa2QXX9u5G-hEtyQt9d60xg/exec";
+  const DEFAULT_CLASSES = ["Nursery", "LKG", "UKG", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
   let autoSaveTimer = null;
 
   // Safe Fetch Function with Auto-Retry
@@ -263,27 +264,39 @@
     }
   }
 
-  // 1. Load Classes List
+  // 1. INSTANT CLASS DROPDOWN LOAD (0 Milliseconds)
   window.onload = function() {
+    const cachedClasses = localStorage.getItem("bps_cached_classes");
+    const classesToRender = cachedClasses ? JSON.parse(cachedClasses) : DEFAULT_CLASSES;
+    
+    renderClassDropdown(classesToRender);
+
+    // Background Fresh Sync
     fetchWithRetry(`${SCRIPT_URL}?action=getClasses`)
       .then(data => {
-        if(data.status === "success") {
-          const classSelect = document.getElementById("classSelect");
-          classSelect.innerHTML = '<option value="">-- Class --</option>';
-          data.classes.forEach(cls => {
-            let opt = document.createElement("option");
-            opt.value = cls;
-            opt.textContent = cls;
-            classSelect.appendChild(opt);
-          });
+        if(data.status === "success" && data.classes.length > 0) {
+          localStorage.setItem("bps_cached_classes", JSON.stringify(data.classes));
+          renderClassDropdown(data.classes);
         }
       })
-      .catch(err => {
-        console.error("Classes load error", err);
-      });
+      .catch(err => console.log("Background Class sync skipped"));
   };
 
-  // 2. Load Subjects
+  function renderClassDropdown(classes) {
+    const classSelect = document.getElementById("classSelect");
+    const currentValue = classSelect.value;
+    classSelect.innerHTML = '<option value="">-- Class --</option>';
+    
+    classes.forEach(cls => {
+      let opt = document.createElement("option");
+      opt.value = cls;
+      opt.textContent = cls;
+      if(cls === currentValue) opt.selected = true;
+      classSelect.appendChild(opt);
+    });
+  }
+
+  // 2. INSTANT SUBJECT DROPDOWN LOAD
   function onClassChange() {
     const className = document.getElementById("classSelect").value;
     const subjectSelect = document.getElementById("subjectSelect");
@@ -295,21 +308,37 @@
 
     if(!className) return;
 
+    const cacheKey = "bps_subjects_" + className;
+    const cachedSubjects = localStorage.getItem(cacheKey);
+
+    if(cachedSubjects) {
+      renderSubjectDropdown(JSON.parse(cachedSubjects));
+    }
+
+    // Background fetch to update subjects dynamically
     fetchWithRetry(`${SCRIPT_URL}?action=getSubjects&className=${encodeURIComponent(className)}`)
       .then(data => {
         if(data.status === "success") {
-          data.subjects.forEach(sub => {
-            let opt = document.createElement("option");
-            opt.value = sub;
-            opt.textContent = sub;
-            subjectSelect.appendChild(opt);
-          });
-          subjectSelect.disabled = false;
+          localStorage.setItem(cacheKey, JSON.stringify(data.subjects));
+          renderSubjectDropdown(data.subjects);
         }
       })
-      .catch(err => {
-        console.error("Subjects load error", err);
-      });
+      .catch(err => console.log("Background Subject sync skipped"));
+  }
+
+  function renderSubjectDropdown(subjects) {
+    const subjectSelect = document.getElementById("subjectSelect");
+    const currentValue = subjectSelect.value;
+    subjectSelect.innerHTML = '<option value="">-- Subject --</option>';
+    
+    subjects.forEach(sub => {
+      let opt = document.createElement("option");
+      opt.value = sub;
+      opt.textContent = sub;
+      if(sub === currentValue) opt.selected = true;
+      subjectSelect.appendChild(opt);
+    });
+    subjectSelect.disabled = false;
   }
 
   // 3. Load Students Data
