@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>BARSOI PUBLIC SCHOOL - Marks Entry Portal</title>
-
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- SweetAlert2 CSS & JS -->
@@ -217,8 +216,8 @@
     <!-- Students Marks Table Form -->
     <form id="marksForm" class="d-none" onsubmit="submitForm(event)">
       <div class="d-flex justify-content-between align-items-center status-bar">
-        <span class="text-muted small fw-bold">Instant Auto-Sync</span>
-        <span id="saveIndicator" class="badge bg-success">Ready</span>
+        <span class="text-muted small fw-bold">Marks auto-saves as you type</span>
+        <span id="saveIndicator" class="badge bg-secondary">Idle</span>
       </div>
 
       <div class="table-responsive">
@@ -249,35 +248,42 @@
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKu0kPz8PhZaHp0SfWcjnOrFxZrpmjDy5c6ZemkHFr63cSa2QXX9u5G-hEtyQt9d60xg/exec";
   let autoSaveTimer = null;
 
-  // 1. Fetch Class List on Page Load (Local Cache First)
-  window.onload = function() {
-    const cachedClasses = sessionStorage.getItem("cached_classes");
-    if (cachedClasses) {
-      populateClassSelect(JSON.parse(cachedClasses));
+  // Safe Fetch Function with Auto-Retry
+  async function fetchWithRetry(url, options = {}, retries = 2) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) throw new Error("HTTP error " + response.status);
+      return await response.json();
+    } catch (err) {
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, 1000));
+        return fetchWithRetry(url, options, retries - 1);
+      }
+      throw err;
     }
+  }
 
-    fetch(`${SCRIPT_URL}?action=getClasses`)
-      .then(res => res.json())
+  // 1. Load Classes List
+  window.onload = function() {
+    fetchWithRetry(`${SCRIPT_URL}?action=getClasses`)
       .then(data => {
         if(data.status === "success") {
-          sessionStorage.setItem("cached_classes", JSON.stringify(data.classes));
-          populateClassSelect(data.classes);
+          const classSelect = document.getElementById("classSelect");
+          classSelect.innerHTML = '<option value="">-- Class --</option>';
+          data.classes.forEach(cls => {
+            let opt = document.createElement("option");
+            opt.value = cls;
+            opt.textContent = cls;
+            classSelect.appendChild(opt);
+          });
         }
+      })
+      .catch(err => {
+        console.error("Classes load error", err);
       });
   };
 
-  function populateClassSelect(classes) {
-    const classSelect = document.getElementById("classSelect");
-    classSelect.innerHTML = '<option value="">-- Class --</option>';
-    classes.forEach(cls => {
-      let opt = document.createElement("option");
-      opt.value = cls;
-      opt.textContent = cls;
-      classSelect.appendChild(opt);
-    });
-  }
-
-  // 2. Fetch Subjects on Class Change
+  // 2. Load Subjects
   function onClassChange() {
     const className = document.getElementById("classSelect").value;
     const subjectSelect = document.getElementById("subjectSelect");
@@ -289,35 +295,24 @@
 
     if(!className) return;
 
-    const cacheKey = "subjects_" + className;
-    const cachedSubjects = sessionStorage.getItem(cacheKey);
-    if(cachedSubjects) {
-      populateSubjectSelect(JSON.parse(cachedSubjects));
-    }
-
-    fetch(`${SCRIPT_URL}?action=getSubjects&className=${encodeURIComponent(className)}`)
-      .then(res => res.json())
+    fetchWithRetry(`${SCRIPT_URL}?action=getSubjects&className=${encodeURIComponent(className)}`)
       .then(data => {
         if(data.status === "success") {
-          sessionStorage.setItem(cacheKey, JSON.stringify(data.subjects));
-          populateSubjectSelect(data.subjects);
+          data.subjects.forEach(sub => {
+            let opt = document.createElement("option");
+            opt.value = sub;
+            opt.textContent = sub;
+            subjectSelect.appendChild(opt);
+          });
+          subjectSelect.disabled = false;
         }
+      })
+      .catch(err => {
+        console.error("Subjects load error", err);
       });
   }
 
-  function populateSubjectSelect(subjects) {
-    const subjectSelect = document.getElementById("subjectSelect");
-    subjectSelect.innerHTML = '<option value="">-- Subject --</option>';
-    subjects.forEach(sub => {
-      let opt = document.createElement("option");
-      opt.value = sub;
-      opt.textContent = sub;
-      subjectSelect.appendChild(opt);
-    });
-    subjectSelect.disabled = false;
-  }
-
-  // 3. Ultra Fast Student Load (Local Cache Support)
+  // 3. Load Students Data
   function loadStudents() {
     const className = document.getElementById("classSelect").value;
     const subject = document.getElementById("subjectSelect").value;
@@ -329,81 +324,98 @@
       return;
     }
 
-    const cacheKey = `students_${className}_${subject}`;
-    const cachedStudents = sessionStorage.getItem(cacheKey);
+    Swal.fire({
+      title: 'Loading Students...',
+      text: 'Please wait a moment',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
 
-    if(cachedStudents) {
-      renderStudentRows(JSON.parse(cachedStudents));
-      marksForm.classList.remove("d-none");
-    } else {
-      Swal.fire({
-        title: 'Loading Data...',
-        text: 'Fetching student list',
-        allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
-      });
-    }
+    tbody.innerHTML = "";
 
-    // Background Fresh Sync
-    fetch(`${SCRIPT_URL}?action=getStudents&className=${encodeURIComponent(className)}&subject=${encodeURIComponent(subject)}`)
-      .then(res => res.json())
+    fetchWithRetry(`${SCRIPT_URL}?action=getStudents&className=${encodeURIComponent(className)}&subject=${encodeURIComponent(subject)}`)
       .then(data => {
-        if(!cachedStudents) Swal.close();
+        Swal.close();
         if(data.status === "success") {
-          sessionStorage.setItem(cacheKey, JSON.stringify(data.students));
-          renderStudentRows(data.students);
           marksForm.classList.remove("d-none");
+
+          if(data.students.length === 0) {
+            Swal.fire({
+              icon: 'warning',
+              title: 'No Data',
+              text: `No student records found in Class ${className}`
+            });
+            return;
+          }
+
+          data.students.forEach(std => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td class="fw-bold text-secondary">${std.rollNo}</td>
+              <td class="fw-semibold">${std.name}</td>
+              <td class="text-center">
+                <input type="number" 
+                       class="form-control form-control-sm mark-input mx-auto" 
+                       data-row="${std.rowNum}" 
+                       value="${std.mark}" 
+                       min="0" max="100" 
+                       placeholder="0"
+                       oninput="triggerAutoSave()"
+                       onchange="triggerAutoSaveImmediate()">
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else {
+          Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Error loading records.' });
         }
       })
       .catch(err => {
-        if(!cachedStudents) {
-          Swal.close();
-          Swal.fire({ icon: 'error', title: 'Error', text: 'Network Error!' });
-        }
+        Swal.close();
+        Swal.fire({
+          icon: 'error',
+          title: 'Connection Issue',
+          text: 'Unable to connect to Google Sheet. Retrying...'
+        });
       });
   }
 
-  function renderStudentRows(students) {
-    const tbody = document.getElementById("studentTableBody");
-    tbody.innerHTML = "";
-    students.forEach(std => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="fw-bold text-secondary">${std.rollNo}</td>
-        <td class="fw-semibold">${std.name}</td>
-        <td class="text-center">
-          <input type="number" 
-                 class="form-control form-control-sm mark-input mx-auto" 
-                 data-row="${std.rowNum}" 
-                 value="${std.mark}" 
-                 min="0" max="100" 
-                 placeholder="0"
-                 oninput="triggerAutoSave()">
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  // 4. Instant Auto-Save (Debounce + Background Fetch)
+  // 4. Auto-Save Handlers
   function triggerAutoSave() {
     const badge = document.getElementById("saveIndicator");
     badge.className = "badge bg-warning text-dark";
-    badge.textContent = "Syncing...";
+    badge.textContent = "Typing...";
     
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
       saveMarksToSheet(false);
-    }, 1500);
+    }, 1200);
   }
 
-  // 5. Async Post API Call
+  function triggerAutoSaveImmediate() {
+    clearTimeout(autoSaveTimer);
+    saveMarksToSheet(false);
+  }
+
+  // 5. Save Marks Function
   function saveMarksToSheet(isFinalSubmit = false) {
     const className = document.getElementById("classSelect").value;
     const subject = document.getElementById("subjectSelect").value;
     const badge = document.getElementById("saveIndicator");
 
     if(!className || !subject) return;
+
+    badge.className = "badge bg-info text-dark";
+    badge.textContent = "Saving...";
+
+    if(isFinalSubmit) {
+      Swal.fire({
+        title: 'Submitting Marks...',
+        text: 'Updating Google Sheet',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+      });
+    }
 
     const markInputs = document.querySelectorAll(".mark-input");
     const marksData = [];
@@ -415,30 +427,6 @@
       });
     });
 
-    // Local Storage Update for Immediate Consistency
-    const cacheKey = `students_${className}_${subject}`;
-    const cachedStudents = sessionStorage.getItem(cacheKey);
-    if(cachedStudents) {
-      let parsed = JSON.parse(cachedStudents);
-      parsed.forEach(std => {
-        const found = marksData.find(m => m.rowNum == std.rowNum);
-        if(found) std.mark = found.mark;
-      });
-      sessionStorage.setItem(cacheKey, JSON.stringify(parsed));
-    }
-
-    if(isFinalSubmit) {
-      // INSTANT SUCCESS ALERT (Zero waiting time for teacher)
-      Swal.fire({
-        icon: 'success',
-        title: 'Submitted Successfully!',
-        text: `Marks for Class ${className} (${subject}) submitted!`,
-        timer: 1800,
-        showConfirmButton: false
-      });
-    }
-
-    // Silent Background Fetch to Google Sheet
     fetch(SCRIPT_URL, {
       method: "POST",
       body: JSON.stringify({
@@ -451,19 +439,39 @@
     .then(res => {
       if(res.status === "success") {
         badge.className = "badge bg-success";
-        badge.textContent = "Saved";
+        badge.textContent = "Auto-Saved";
+
+        if(isFinalSubmit) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Submitted Successfully!',
+            text: `Class ${className} (${subject}) marks updated!`,
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }
       } else {
         badge.className = "badge bg-danger";
-        badge.textContent = "Sync Error";
+        badge.textContent = "Save Failed";
+        if(isFinalSubmit) {
+          Swal.fire({ icon: 'error', title: 'Error', text: res.message });
+        }
       }
     })
     .catch(err => {
       badge.className = "badge bg-danger";
-      badge.textContent = "Offline";
+      badge.textContent = "Error";
+      if(isFinalSubmit) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to update Google Sheet.'
+        });
+      }
     });
   }
 
-  // 6. Submit Button Handler (Instant Click Response)
+  // 6. Form Submit
   function submitForm(e) {
     e.preventDefault();
     clearTimeout(autoSaveTimer);
