@@ -267,7 +267,7 @@
         Swal.fire({
           icon: 'error',
           title: 'Connection Error',
-          text: 'Unable to connect to Google Sheet backend.'
+          text: 'Unable to connect to backend.'
         });
       });
   };
@@ -314,7 +314,7 @@
     // SweetAlert Loader
     Swal.fire({
       title: 'Loading Student Records...',
-      text: 'Fetching data from sheet',
+      text: 'Fetching student data',
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
@@ -334,7 +334,7 @@
             Swal.fire({
               icon: 'warning',
               title: 'No Data Found',
-              text: `No student rows found in Class ${className}`
+              text: `No student found in Class ${className}`
             });
             return;
           }
@@ -406,7 +406,7 @@
     if(isFinalSubmit) {
       Swal.fire({
         title: 'Submitting Marks...',
-        text: 'Saving to Google Sheet',
+        text: 'Saving to crosslist',
         allowOutsideClick: false,
         didOpen: () => {
           Swal.showLoading();
@@ -442,7 +442,7 @@
           Swal.fire({
             icon: 'success',
             title: 'Submitted Successfully!',
-            text: `Class ${className} (${subject}) marks updated in sheet!`,
+            text: `Class ${className} (${subject}) Marks updated successfully!`,
             timer: 2500,
             showConfirmButton: false
           });
