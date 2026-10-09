@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+/* Interface Styling */
+body { font-family: 'Times New Roman', serif; background-color: #008000; margin: 0; padding: 0; }
+.top-header { background-color: #FFA500; color: #000; text-align: center; padding: 15px; border-bottom: 3px solid #0056b3; }
+#search-box { max-width: 400px; margin: 30px auto; background: #C0C0C0; padding: 5px; border: 2px solid #333; text-align: center; }
+.search-inner { background: #fff; padding: 20px; border: 1px solid #333; }
+.input-row { display: flex; margin-bottom: 10px; border: 1px solid #333; }
+.input-row label { background: #E0E0E0; padding: 8px; width: 100px; text-align: left; border-right: 1px solid #333; font-weight: bold; }
+.input-row select { border: none; padding: 8px; flex: 1; outline: none; background: #fff; font-size: 14px; }
+.check-btn { background: #5D9CEC; color: white; border: 1px solid #fff; padding: 10px 25px; cursor: pointer; font-weight: bold; margin-top: 10px; border-radius: 4px; width: 100%; }
+
+/* Marksheet Container - Exact Copy from Search Result */
+.m-container { 
+    display: block; 
+    width: 800px; 
+    margin: 20px auto; 
+    background: #fff; 
+    box-sizing: border-box; 
+    padding: 30px; 
+    border: 15px solid transparent;
+    border-image-source: url('https://www.transparenttextures.com/patterns/cubes.png'); 
+    border-image-slice: 30;
+    border-image-repeat: round;
+    outline: 2px solid #333; 
+    outline-offset: -10px;
+    box-shadow: 0 0 0 2px #333; 
+    page-break-after: always; /* New page for each student */
+}
+
+.header-box { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; position: relative; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+th, td { border: 1px solid #000; padding: 6px; text-align: center; font-size: 13px; }
+.yellow-bar { background: #FFEA00 !important; font-weight: bold; }
+.info-table { border: none !important; margin-bottom: 15px; table-layout: auto !important; width: 100%; }
+.info-table td { border: none !important; text-align: left; padding: 4px 0; font-size: 14px; vertical-align: middle; }
+.label-cell { font-weight: bold; width: 130px; } 
+.photo-wrap { width: 110px; height: 130px; border: 1px solid #000; background: #f0f0f0; overflow: hidden; display: flex; align-items: center; justify-content: center; float: right; }
+.photo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.note-section { font-size: 11px; text-align: justify; margin-top: 15px; border-top: 1px solid #000; padding-top: 10px; }
+.footer-signs { margin-top: 30px; display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; align-items: flex-end; }
+.sign-box { text-align: center; width: 150px; }
+.sign-img { height: 45px; display: block; margin: 0 auto 5px auto; }
+.bottom-footer { background-color: #FFA500; color: #000; text-align: center; padding: 15px; font-size: 13px; margin-top: 50px; }
+
+@media print { 
+    body { background-color: #fff !important; }
+    #search-box, .top-header, .bottom-footer, #print-controls { display: none !important; } 
+    .m-container { display: block !important; width: 100% !important; margin: 0 !important; border: 2px solid #000 !important; box-shadow: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="top-header" id="ui-header">
+    <h1>BARSOI PUBLIC SCHOOL</h1>
+    <p>Bulk Marksheet Generator - Session 2025-26</p>
+</div>
+
+<div id="search-box">
+    <div class="search-inner">
+        <h3 style="margin-top:0;">Select Class for Bulk Print</h3>
+        <div class="input-row">
+            <label>Class:</label>
+            <select id="cls">
+                <option value="">-- Select --</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+            </select>
+        </div>
+        <button class="check-btn" id="load-btn" onclick="loadBulk()">Generate Marksheets</button>
+        
+        <div id="print-controls" style="display:none; margin-top:15px;">
+            <button class="check-btn" style="background:#008000;" onclick="window.print()">PRINT ALL / SAVE PDF</button>
+            <button class="check-btn" style="background:#666;" onclick="location.reload()">BACK</button>
+        </div>
+    </div>
+</div>
+
+<div id="bulk-output"></div>
+
+<div class="bottom-footer" id="ui-footer">
+    Developed by: Riyaz Ahmad, PGT Zoology
+</div>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbxv2Wu0SnaRVglKa74sNCXlvZOcv4mYVhLQxcd-WALpn2ESq3z1joUKCLIRHM5emGnm/exec";
+
+    // Grade calculate karne ke liye function
+    function getGrade(marks) {
+        let m = Number(marks);
+        if (m >= 91) return "A1";
+        if (m >= 81) return "A2";
+        if (m >= 71) return "B1";
+        if (m >= 61) return "B2";
+        if (m >= 51) return "C1";
+        if (m >= 41) return "C2";
+        if (m >= 33) return "D";
+        return "E1";
+    }
+
+    function loadBulk() {
+        var c = document.getElementById('cls').value;
+        if(!c) return Swal.fire('Warning', 'Please select a class!', 'warning');
+        
+        const btn = document.getElementById('load-btn');
+        btn
